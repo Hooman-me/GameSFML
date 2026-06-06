@@ -1,5 +1,5 @@
-#include "Enemy.hpp"
-#include "Constants.hpp"
+#include "../include/Enemy.hpp"
+#include "../include/Constants.hpp"
 #include <cmath>
 
 // ============================================================
