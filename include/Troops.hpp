@@ -4,50 +4,55 @@
 #include "Projectile.hpp"
 
 // ============================================================
-//  TROOPS.HPP  –  Data & logika satu troop yang di-deploy
+//  TROOPS.HPP  –  CatBlaze dengan animasi Idle/Attack/Hurt
 // ============================================================
 
-enum class TroopState   { Idle, Attacking };
-enum class FacingDir    { Left, Right };   // 2 arah deploy utama
+enum class TroopState   { Idle, Attacking, Hurt };
+enum class FacingDir    { Left, Right };
 
-class Enemy; // forward declaration
+class Enemy;
 
 class Troop {
 public:
-    Troop(sf::Vector2f pos, FacingDir facing, sf::Texture* tex);
+    Troop(sf::Vector2f pos, FacingDir facing,
+          sf::Texture* texIdle,
+          sf::Texture* texAttack,
+          sf::Texture* texHurt,
+          sf::Texture* texFireball);
 
-    // Dipanggil tiap frame; mengisi outProjectiles jika perlu tembak
     void update(float dt,
                 const std::vector<class Enemy*>& enemies,
                 std::vector<Projectile>& outProjectiles);
 
     void draw(sf::RenderWindow& window) const;
+    void drawRangeIndicator(sf::RenderWindow& window) const;
 
     sf::Vector2f getPosition() const { return m_pos; }
-
-    // Gambar indikator radius serang (debug / preview)
-    void drawRangeIndicator(sf::RenderWindow& window) const;
 
 private:
     sf::Vector2f  m_pos;
     FacingDir     m_facing;
-    TroopState    m_state   = TroopState::Idle;
+    TroopState    m_state         = TroopState::Idle;
 
-    float m_attackCooldown  = 0.f;   // waktu tunggu sampai bisa tembak lagi
+    float         m_attackCooldown = 0.f;
+    float         m_hurtTimer      = 0.f;
 
-    // Sprite / animasi
-    sf::Texture*  m_tex     = nullptr;
+    sf::Texture*  m_texIdle    = nullptr;
+    sf::Texture*  m_texAttack  = nullptr;
+    sf::Texture*  m_texHurt    = nullptr;
+    sf::Texture*  m_texFireball= nullptr;
     sf::Sprite    m_sprite;
-    int           m_frameCol= 0;
-    float         m_animTimer=0.f;
+    int           m_frame      = 0;
+    float         m_animTimer  = 0.f;
 
-    // --- Sensor / FOV ---
-    // Menentukan apakah musuh masuk ke dalam kerucut serang
-    bool inAttackRange(sf::Vector2f enemyPos) const;
-    float facingAngleRad() const;  // sudut tengah FOV dalam radian
+    // Menyimpan posisi musuh target saat tembak (untuk arah peluru akurat)
+    sf::Vector2f  m_lastTargetPos;
+    bool          m_hasTarget  = false;
 
-    // Animasi
-    void updateAnimation(float dt, bool attacking);
-    void drawHPBar(sf::RenderWindow& window) const; // troops tidak ada HP, tapi bisa diperluas
-    void drawPlaceholder(sf::RenderWindow& window) const;
+    bool  inAttackRange(sf::Vector2f enemyPos) const;
+    float facingAngleRad() const;
+    float angleToTarget(sf::Vector2f target) const;
+
+    void updateAnim(float dt);
+    void applyFrame();
 };

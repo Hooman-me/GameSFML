@@ -1,17 +1,21 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <vector>
-#include <memory>
 #include "Map.hpp"
 #include "Enemy.hpp"
 #include "Troops.hpp"
 #include "Projectile.hpp"
-
-// ============================================================
-//  PLAYSTATE.HPP  –  Otak utama game: loop, HUD, input
-// ============================================================
+#include "Constants.hpp"
 
 enum class GamePhase { Playing, GameOver, Victory };
+
+// Damage text popup
+struct DmgText {
+    sf::Vector2f pos;
+    float        value;
+    float        life   = 1.0f; // seconds
+    float        alpha  = 255.f;
+};
 
 class PlayState {
 public:
@@ -22,61 +26,57 @@ public:
     void draw(sf::RenderWindow& window);
 
 private:
-    // --- Subsistem ---
     Map m_map;
 
-    // --- Entities ---
     std::vector<Enemy>      m_enemies;
     std::vector<Troop>      m_troops;
     std::vector<Projectile> m_projectiles;
+    std::vector<DmgText>    m_dmgTexts;   // damage number popups
 
-    // --- Textures (nullptr = pakai placeholder) ---
-    sf::Texture m_troopTex;
-    sf::Texture m_enemyTex;
-    bool        m_troopTexLoaded = false;
-    bool        m_enemyTexLoaded = false;
+    // --- Textures ---
+    sf::Texture m_texCatIdle, m_texCatAttack, m_texCatHurt;
+    sf::Texture m_texSlimeIdle, m_texSlimeWalk, m_texSlimeHurt;
+    sf::Texture m_texFireball;
+    bool        m_assetsLoaded = false;
 
     // --- Font ---
     sf::Font    m_font;
     bool        m_fontLoaded = false;
 
-    // --- HUD data ---
-    int   m_money    = MONEY_START;
-    int   m_baseHP   = BASE_MAX_HP;
-    int   m_enemyCount = 0;        // musuh yang sudah muncul
-    float m_moneyTimer = 0.f;
-    GamePhase m_phase = GamePhase::Playing;
+    // --- Game state ---
+    int         m_money    = MONEY_START;
+    int         m_baseHP   = BASE_MAX_HP;
+    float       m_moneyTimer = 0.f;
+    GamePhase   m_phase    = GamePhase::Playing;
 
-    // --- Wave / spawn ---
-    float m_spawnTimer   = 0.f;
-    int   m_spawned      = 0;
-    int   m_killed       = 0;
+    // --- Wave ---
+    float       m_spawnTimer = 0.f;
+    int         m_spawned    = 0;
+    int         m_killed     = 0;
 
-    // --- Deploy cursor state ---
-    int   m_selectedCard = -1;     // indeks kartu yang dipilih (-1 = tidak ada)
-    bool  m_placing      = false;  // mode "sedang menaruh troop"
+    // --- Deploy ---
+    int         m_selectedCard = -1;
+    bool        m_placing      = false;
 
-    // --- Metode privat ---
+    // --- Methods ---
+    void loadAssets();
     void spawnEnemy();
     void updateCollisions();
     void tryDeployTroop(sf::Vector2f worldPos);
 
-    // UI drawing
     void drawHUD(sf::RenderWindow& window);
     void drawUIBar(sf::RenderWindow& window);
     void drawDeployCursor(sf::RenderWindow& window, sf::Vector2f mousePos);
     void drawGameOver(sf::RenderWindow& window);
+    void drawDmgTexts(sf::RenderWindow& window);
 
-    // Helper
-    sf::Text makeText(const std::string& str, unsigned size,
-                      sf::Color col, sf::Vector2f pos);
-
-    // Kartu troop di UI bar
     struct TroopCard {
-        std::string name;
+        const char* name;
         int         cost;
-        sf::Color   color;  // placeholder warna kartu
     };
-    std::vector<TroopCard> m_cards;
-    void buildCards();
+    static constexpr TroopCard CARDS[] = {
+        { "CatBlaze", TROOP_COST },
+        { "", 0 }, { "", 0 }, { "", 0 }
+    };
+    static constexpr int NUM_CARDS = 4;
 };

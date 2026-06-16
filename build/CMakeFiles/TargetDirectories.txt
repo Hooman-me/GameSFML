@@ -1,0 +1,3 @@
+/home/hooman/TowerDefense/build/CMakeFiles/TowerDefense.dir
+/home/hooman/TowerDefense/build/CMakeFiles/edit_cache.dir
+/home/hooman/TowerDefense/build/CMakeFiles/rebuild_cache.dir

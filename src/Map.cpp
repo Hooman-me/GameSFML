@@ -1,146 +1,209 @@
-#include "../include/Map.hpp"
-#include "../include/Constants.hpp"
+#include "Map.hpp"
+#include "Constants.hpp"
+#include <fstream>
+#include <sstream>
 #include <cmath>
+#include <nlohmann/json.hpp>
 
-// ============================================================
-//  MAP.CPP
-// ============================================================
+using json = nlohmann::json;
 
 Map::Map() {
+    m_floorLoaded  = m_texFloor.loadFromFile(TILESET_FLOOR_PATH);
+    m_natureLoaded = m_texNature.loadFromFile(TILESET_NATURE_PATH);
+    loadTMJ();
     buildWaypoints();
 }
 
-// *** UBAH KOORDINAT INI UNTUK MENGUBAH BENTUK JALUR ***
-// Sesuai dengan gambar UI: jalur membentuk loop kotak di kiri,
-// lalu keluar ke kanan menuju base.
-// Koordinat dalam pixel, (0,0) = sudut kiri-atas area game.
-void Map::buildWaypoints() {
-    m_waypoints = {
-        {  20.f, 115.f },   // [0] SPAWN – sisi kiri atas
-        { 430.f, 115.f },   // [1] belok kanan atas
-        { 430.f, 480.f },   // [2] belok kanan bawah
-        {  20.f, 480.f },   // [3] belok kiri bawah
-        {  20.f, 295.f },   // [4] tengah kiri (bertemu ujung loop)
-        { 430.f, 295.f },   // [5] keluar dari loop ke kanan
-        { 950.f, 295.f },   // [6] menuju base
-    };
+void Map::loadTMJ() {
+    std::ifstream f(MAP_TMJ_PATH);
+    if (!f.is_open()) return;
+
+    try {
+        json data = json::parse(f);
+        int tileW = data["tilewidth"].get<int>();
+        int tileH = data["tileheight"].get<int>();
+        int mapW  = data["width"].get<int>();
+        int mapH  = data["height"].get<int>();
+
+        // Setup tilesets
+        for (auto& ts : data["tilesets"]) {
+            TilesetInfo ti;
+            ti.firstgid = ts["firstgid"].get<int>();
+            if (ts.contains("columns")) ti.columns = ts["columns"].get<int>();
+            if (ts.contains("tilewidth"))  ti.tileW = ts["tilewidth"].get<int>();
+            if (ts.contains("tileheight")) ti.tileH = ts["tileheight"].get<int>();
+            // Map textures
+            if (ts.contains("name")) {
+                std::string name = ts["name"].get<std::string>();
+                if (name == "TilesetFloor"   && m_floorLoaded)  ti.tex = &m_texFloor;
+                if (name == "TilesetNature"  && m_natureLoaded) ti.tex = &m_texNature;
+            }
+            m_tilesets.push_back(ti);
+        }
+
+        // Load tile layers
+        for (auto& layer : data["layers"]) {
+            if (layer["type"].get<std::string>() == "tilelayer") {
+                TileLayer tl;
+                tl.width  = mapW;
+                tl.height = mapH;
+                auto& d   = layer["data"];
+                tl.data.reserve(d.size());
+                for (auto& v : d) tl.data.push_back(v.get<int>());
+                m_layers.push_back(std::move(tl));
+            }
+        }
+        m_mapLoaded = true;
+    } catch (...) {
+        m_mapLoaded = false;
+    }
 }
 
-// --- Draw seluruh peta ---
+// *** Waypoints sesuai peta (Map 1.tmj, 1056x528) ***
+// Jalur dari tile layer 2 (visual path tiles)
+// Musuh spawn dari kiri-atas -> loop kotak -> exit ke kanan -> base
+void Map::buildWaypoints() {
+    // Tile path width = 3 tiles = 48px, center = +24px
+    // Top band:    tiles row 4-6  (y=64-96)  center y=80
+    // Right side:  tiles col 26-28 (x=416-448) center x=432
+    // Bottom band: tiles row 22-24 (y=352-384) center y=368
+    // Left side:   tiles col 0-2   (x=0-32)   center x=16 (tapi spawn di x=0)
+    // Inner-left:  tiles col 2-4   (x=32-64)  center x=48
+    // Center exit: tiles row 13-15 (y=208-240) center y=224
+    // Exit path goes right from col 26 to col 65
+
+    m_waypoints = {
+        {   0.f,  80.f },  // [0] SPAWN – kiri atas
+        { 432.f,  80.f },  // [1] Pojok kanan atas
+        { 432.f, 368.f },  // [2] Pojok kanan bawah
+        {  16.f, 368.f },  // [3] Pojok kiri bawah
+        {  16.f, 224.f },  // [4] Tengah kiri (titik berbalik)
+        { 432.f, 224.f },  // [5] Tengah (exit loop ke kanan)
+        {1048.f, 224.f },  // [6] BASE – kanan tengah
+    };
+    // *** Ubah koordinat di atas untuk mengubah jalur ***
+}
+
 void Map::draw(sf::RenderWindow& window) const {
-    drawPath(window);
+    // Render tile layers
+    if (m_mapLoaded) {
+        for (auto& layer : m_layers) {
+            drawTileLayer(window, layer);
+        }
+    } else {
+        // Fallback: gambar background sederhana
+        sf::RectangleShape bg({ (float)WINDOW_WIDTH, (float)GAME_AREA_HEIGHT });
+        bg.setFillColor(sf::Color(45, 65, 40));
+        window.draw(bg);
+
+        // Gambar jalur manual
+        sf::Color pathColor(0xC8, 0x9B, 0x0A);
+        float hw = 24.f;
+        for (size_t i = 0; i + 1 < m_waypoints.size(); ++i) {
+            auto a = m_waypoints[i], b = m_waypoints[i+1];
+            sf::Vector2f diff = b - a;
+            float len = std::sqrt(diff.x*diff.x + diff.y*diff.y);
+            if (len < 1.f) continue;
+            sf::RectangleShape seg;
+            seg.setSize({ len, hw*2.f });
+            seg.setFillColor(pathColor);
+            float ang = std::atan2(diff.y, diff.x) * 180.f / 3.14159265f;
+            seg.setRotation(ang);
+            sf::Vector2f perp = { -diff.y/len*hw, diff.x/len*hw };
+            seg.setPosition(a + perp);
+            window.draw(seg);
+            sf::CircleShape jnt(hw);
+            jnt.setFillColor(pathColor);
+            jnt.setOrigin(hw, hw);
+            jnt.setPosition(a);
+            window.draw(jnt);
+        }
+    }
+
     drawBase(window);
     drawSpawnMarker(window);
 }
 
-// Gambar jalur sebagai rangkaian kotak tebal berwarna emas
-void Map::drawPath(sf::RenderWindow& window) const {
-    sf::Color pathColor(0xC8, 0x9B, 0x0A); // *** warna jalur emas ***
+void Map::drawTileLayer(sf::RenderWindow& window, const TileLayer& layer) const {
+    const int TS = 16;
+    for (int row = 0; row < layer.height; ++row) {
+        for (int col = 0; col < layer.width; ++col) {
+            int gid = layer.data[row * layer.width + col];
+            if (gid == 0) continue;
 
-    const float hw = m_pathWidth * 0.5f;
+            // Find tileset for this gid
+            const TilesetInfo* ts = nullptr;
+            for (int i = (int)m_tilesets.size()-1; i >= 0; --i) {
+                if (m_tilesets[i].firstgid <= gid) { ts = &m_tilesets[i]; break; }
+            }
+            if (!ts || !ts->tex || ts->columns <= 0) continue;
 
-    for (size_t i = 0; i + 1 < m_waypoints.size(); ++i) {
-        sf::Vector2f a = m_waypoints[i];
-        sf::Vector2f b = m_waypoints[i + 1];
+            int lid = gid - ts->firstgid;
+            int tcol = lid % ts->columns;
+            int trow = lid / ts->columns;
 
-        sf::Vector2f diff = b - a;
-        float len = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-        if (len < 1.f) continue;
-
-        sf::RectangleShape seg;
-        seg.setSize({ len, m_pathWidth });
-        seg.setFillColor(pathColor);
-
-        // Hitung sudut
-        float angle = std::atan2(diff.y, diff.x) * 180.f / 3.14159265f;
-        seg.setRotation(angle);
-
-        // Origin di tengah-kiri segmen
-        sf::Vector2f perp = { -diff.y / len * hw, diff.x / len * hw };
-        seg.setPosition(a + perp);
-
-        window.draw(seg);
-
-        // Gambar lingkaran di setiap sambungan waypoint agar sudutnya rapi
-        sf::CircleShape joint(hw);
-        joint.setFillColor(pathColor);
-        joint.setOrigin(hw, hw);
-        joint.setPosition(a);
-        window.draw(joint);
+            sf::Sprite sp;
+            sp.setTexture(*ts->tex);
+            sp.setTextureRect(sf::IntRect(
+                tcol * ts->tileW, trow * ts->tileH,
+                ts->tileW, ts->tileH));
+            sp.setPosition((float)(col * TS), (float)(row * TS));
+            window.draw(sp);
+        }
     }
-    // Lingkaran di waypoint terakhir
-    sf::CircleShape joint(hw);
-    joint.setFillColor(pathColor);
-    joint.setOrigin(hw, hw);
-    joint.setPosition(m_waypoints.back());
-    window.draw(joint);
 }
 
-// Gambar base (kotak biru) di posisi waypoint terakhir
 void Map::drawBase(sf::RenderWindow& window) const {
     if (m_waypoints.empty()) return;
-    sf::Vector2f basePos = m_waypoints.back();
-    float sz = 80.f; // *** ukuran kotak base ***
-
+    auto basePos = m_waypoints.back();
+    float sz = 72.f;
     sf::RectangleShape base({ sz, sz });
-    base.setFillColor(sf::Color(0x00, 0xBF, 0xD8, 220)); // biru cyan
+    base.setFillColor(sf::Color(0x00, 0xBF, 0xD8, 220));
     base.setOutlineColor(sf::Color::White);
     base.setOutlineThickness(2.f);
-    base.setOrigin(sz * 0.5f, sz * 0.5f);
+    base.setOrigin(sz*.5f, sz*.5f);
     base.setPosition(basePos);
     window.draw(base);
 }
 
-// Marker kecil merah di spawn
 void Map::drawSpawnMarker(sf::RenderWindow& window) const {
     if (m_waypoints.empty()) return;
-    sf::CircleShape mark(14.f);
+    sf::CircleShape mark(12.f);
     mark.setFillColor(sf::Color(200, 50, 50, 180));
     mark.setOutlineColor(sf::Color::White);
     mark.setOutlineThickness(1.5f);
-    mark.setOrigin(14.f, 14.f);
+    mark.setOrigin(12.f, 12.f);
     mark.setPosition(m_waypoints.front());
     window.draw(mark);
 }
 
-// Cek apakah posisi layak untuk deploy troop
 bool Map::isDeployable(sf::Vector2f pos) const {
-    // Harus di dalam area game (bukan UI bar)
     if (pos.y > GAME_AREA_HEIGHT - 10.f) return false;
     if (pos.x < 5.f || pos.x > WINDOW_WIDTH - 5.f) return false;
-
-    // Tidak boleh di atas/dekat jalur
     if (nearPath(pos)) return false;
-
-    // Tidak boleh di atas base
-    sf::Vector2f basePos = m_waypoints.back();
-    float dx = pos.x - basePos.x;
-    float dy = pos.y - basePos.y;
-    if (std::sqrt(dx * dx + dy * dy) < 55.f) return false;
-
+    auto base = m_waypoints.back();
+    float dx = pos.x - base.x, dy = pos.y - base.y;
+    if (std::sqrt(dx*dx + dy*dy) < 50.f) return false;
     return true;
 }
 
 bool Map::nearPath(sf::Vector2f pos, float margin) const {
-    for (size_t i = 0; i + 1 < m_waypoints.size(); ++i) {
-        float d = pointToSegmentDist(pos, m_waypoints[i], m_waypoints[i + 1]);
-        if (d < m_pathWidth * 0.5f + margin) return true;
+    for (size_t i = 0; i+1 < m_waypoints.size(); ++i) {
+        if (pointSegDist(pos, m_waypoints[i], m_waypoints[i+1]) < 28.f + margin)
+            return true;
     }
     return false;
 }
 
-float Map::pointToSegmentDist(sf::Vector2f p,
-                               sf::Vector2f a,
-                               sf::Vector2f b) const {
-    sf::Vector2f ab = b - a;
-    sf::Vector2f ap = p - a;
-    float len2 = ab.x * ab.x + ab.y * ab.y;
+float Map::pointSegDist(sf::Vector2f p, sf::Vector2f a, sf::Vector2f b) const {
+    sf::Vector2f ab = b-a, ap = p-a;
+    float len2 = ab.x*ab.x + ab.y*ab.y;
     if (len2 < 1e-6f) {
-        float dx = p.x - a.x, dy = p.y - a.y;
-        return std::sqrt(dx * dx + dy * dy);
+        float dx=p.x-a.x, dy=p.y-a.y;
+        return std::sqrt(dx*dx+dy*dy);
     }
-    float t = std::max(0.f, std::min(1.f, (ap.x * ab.x + ap.y * ab.y) / len2));
-    sf::Vector2f closest = { a.x + t * ab.x, a.y + t * ab.y };
-    float dx = p.x - closest.x, dy = p.y - closest.y;
-    return std::sqrt(dx * dx + dy * dy);
+    float t = std::max(0.f, std::min(1.f, (ap.x*ab.x+ap.y*ab.y)/len2));
+    sf::Vector2f cl = {a.x+t*ab.x, a.y+t*ab.y};
+    float dx=p.x-cl.x, dy=p.y-cl.y;
+    return std::sqrt(dx*dx+dy*dy);
 }

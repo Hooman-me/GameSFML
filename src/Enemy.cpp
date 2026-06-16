@@ -1,145 +1,182 @@
 #include "../include/Enemy.hpp"
 #include "../include/Constants.hpp"
 #include <cmath>
+#include <algorithm> // Ditambahkan untuk std::max
 
-// ============================================================
-//  ENEMY.CPP
-// ============================================================
-
-Enemy::Enemy(const std::vector<sf::Vector2f>& waypoints, sf::Texture* tex)
-    : m_waypoints(waypoints), m_tex(tex)
+Enemy::Enemy(const std::vector<sf::Vector2f>& waypoints,
+             sf::Texture* texIdle,
+             sf::Texture* texWalk,
+             sf::Texture* texHurt)
+    : m_waypoints(&waypoints) // FIX: Mengambil alamat memori dari waypoints
+    , m_texIdle(texIdle), m_texWalk(texWalk), m_texHurt(texHurt)
 {
     m_hp      = ENEMY_HP;
     m_maxHp   = ENEMY_HP;
     m_speed   = ENEMY_SPEED;
     m_defense = ENEMY_DEFENSE;
+    m_pos     = waypoints[0];
 
-    m_pos = waypoints[0];
+    // GiantSlime default scale (62x52 per frame)
+    m_sprite.setOrigin(SLIME_FRAME_W * .5f, SLIME_FRAME_H * .5f);
+    m_anim = EnemyAnim::Walk;
+    applyFrame();
+}
 
-    if (m_tex) {
-        m_sprite.setTexture(*m_tex);
-        m_sprite.setTextureRect(sf::IntRect(0, SPRITE_ROW_RIGHT * SPRITE_FRAME_H,
-                                            SPRITE_FRAME_W, SPRITE_FRAME_H));
-        m_sprite.setOrigin(SPRITE_FRAME_W * 0.5f, SPRITE_FRAME_H * 0.5f);
-        m_sprite.setScale(1.f, 1.f); // *** ubah skala sprite musuh ***
+float Enemy::takeDamage(float rawDmg) {
+    // Flat reduction (Arknights-style), minimum 1
+    float actual = std::max(1.f, rawDmg - m_defense);
+    m_hp -= actual;
+    if (m_hp < 0.f) m_hp = 0.f;
+
+    if (m_hp <= 0.f) {
+        m_anim       = EnemyAnim::Dead;
+        m_frame      = 0;
+        m_animTimer  = 0.f;
+        m_deathTimer = SLIME_IDLE_FRAMES * SLIME_ANIM_TIME; // show death anim
+    } else {
+        m_anim      = EnemyAnim::Hurt;
+        m_frame     = 0;
+        m_animTimer = 0.f;
+        m_hurtTimer = SLIME_HURT_FRAMES * SLIME_ANIM_TIME;
     }
+    return actual;
 }
 
 void Enemy::update(float dt) {
-    if (isDead() || m_reached) return;
+    if (m_hp <= 0.f) {
+        m_deathTimer -= dt;
+        updateAnim(dt);
+        return;
+    }
+    if (m_reached) return;
 
-    // Menuju waypoint berikutnya
-    if (m_waypointIdx >= (int)m_waypoints.size()) {
+    // Hurt timer
+    if (m_hurtTimer > 0.f) {
+        m_hurtTimer -= dt;
+        if (m_hurtTimer <= 0.f) {
+            m_anim  = EnemyAnim::Walk;
+            m_frame = 0;
+        }
+    }
+
+    // Move toward next waypoint
+    if (m_waypointIdx >= (int)m_waypoints->size()) {
         m_reached = true;
         return;
     }
-
-    sf::Vector2f target = m_waypoints[m_waypointIdx];
+    
+    // FIX: Dereference pointer untuk mengakses index
+    sf::Vector2f target = (*m_waypoints)[m_waypointIdx];
     sf::Vector2f diff   = target - m_pos;
-    float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-
-    sf::Vector2f dir = { 0.f, 0.f };
-    if (dist > 0.01f) dir = { diff.x / dist, diff.y / dist };
+    float dist = std::sqrt(diff.x*diff.x + diff.y*diff.y);
 
     if (dist < ENEMY_WAYPOINT_DIST) {
         m_pos = target;
         m_waypointIdx++;
-        if (m_waypointIdx >= (int)m_waypoints.size()) {
+        
+        // FIX: Gunakan panah -> untuk method size()
+        if (m_waypointIdx >= (int)m_waypoints->size()) {
             m_reached = true;
             return;
         }
+        
+        // Update facing after waypoint change
+        // FIX: Dereference pointer untuk mengakses index
+        sf::Vector2f nd = (*m_waypoints)[m_waypointIdx] - m_pos;
+        m_facingRight = (nd.x >= 0.f);
     } else {
+        sf::Vector2f dir = { diff.x/dist, diff.y/dist };
         m_pos += dir * m_speed * dt;
+        m_facingRight = (diff.x >= 0.f);
     }
 
-    updateAnimation(dt, dir);
+    updateAnim(dt);
 }
 
-void Enemy::updateAnimation(float dt, sf::Vector2f dir) {
-    if (!m_tex) return;
+void Enemy::updateAnim(float dt) {
+    int maxFrames = SLIME_WALK_FRAMES;
+    float frameTime = SLIME_ANIM_TIME;
 
-    // Tentukan baris sprite berdasarkan arah gerak dominan
-    if (std::abs(dir.x) >= std::abs(dir.y)) {
-        m_spriteRow = (dir.x >= 0.f) ? SPRITE_ROW_RIGHT : SPRITE_ROW_LEFT;
-    } else {
-        m_spriteRow = (dir.y >= 0.f) ? SPRITE_ROW_DOWN : SPRITE_ROW_UP;
+    switch (m_anim) {
+        case EnemyAnim::Idle: maxFrames = SLIME_IDLE_FRAMES; break;
+        case EnemyAnim::Walk: maxFrames = SLIME_WALK_FRAMES; break;
+        case EnemyAnim::Hurt: maxFrames = SLIME_HURT_FRAMES; break;
+        case EnemyAnim::Dead: maxFrames = SLIME_HURT_FRAMES; break; // reuse hurt anim
     }
 
     m_animTimer += dt;
-    if (m_animTimer >= ANIM_FRAME_TIME) {
-        m_animTimer -= ANIM_FRAME_TIME;
-        m_frameCol = (m_frameCol + 1) % SPRITE_FRAMES;
+    if (m_animTimer >= frameTime) {
+        m_animTimer -= frameTime;
+        m_frame++;
+        if (m_frame >= maxFrames) {
+            if (m_anim == EnemyAnim::Hurt) {
+                // loop back to walk after hurt
+                m_anim  = EnemyAnim::Walk;
+                m_frame = 0;
+            } else {
+                m_frame = 0; // loop all others
+            }
+        }
     }
-
-    m_sprite.setTextureRect(sf::IntRect(
-        m_frameCol * SPRITE_FRAME_W,
-        m_spriteRow * SPRITE_FRAME_H,
-        SPRITE_FRAME_W,
-        SPRITE_FRAME_H
-    ));
+    applyFrame();
 }
 
-float Enemy::takeDamage(float rawDmg) {
-    // Arknights flat-reduction dengan minimal 1
-    float actual = std::max(1.f, rawDmg - m_defense);
-    m_hp -= actual;
-    if (m_hp < 0.f) m_hp = 0.f;
-    return actual;
+void Enemy::applyFrame() {
+    sf::Texture* tex = nullptr;
+    int frameW = SLIME_FRAME_W;
+    int frameH = SLIME_FRAME_H;
+
+    switch (m_anim) {
+        case EnemyAnim::Idle: tex = m_texIdle; break;
+        case EnemyAnim::Walk: tex = m_texWalk; break;
+        case EnemyAnim::Hurt:
+        case EnemyAnim::Dead: tex = m_texHurt; break;
+    }
+    if (!tex) return;
+
+    m_sprite.setTexture(*tex, true);
+    m_sprite.setTextureRect(sf::IntRect(m_frame * frameW, 0, frameW, frameH));
+    m_sprite.setOrigin(frameW * .5f, frameH * .5f);
+
+    // Mirror based on facing direction
+    float scaleX = m_facingRight ? 1.f : -1.f;
+    m_sprite.setScale(scaleX, 1.f);
 }
 
 sf::FloatRect Enemy::getBounds() const {
-    float hw = SPRITE_FRAME_W * 0.5f;
-    float hh = SPRITE_FRAME_H * 0.5f;
-    return { m_pos.x - hw, m_pos.y - hh, (float)SPRITE_FRAME_W, (float)SPRITE_FRAME_H };
+    float hw = SLIME_FRAME_W * .45f;
+    float hh = SLIME_FRAME_H * .45f;
+    return { m_pos.x - hw, m_pos.y - hh, hw*2.f, hh*2.f };
 }
 
 void Enemy::draw(sf::RenderWindow& window) const {
-    if (isDead()) return;
+    if (m_hp <= 0.f && m_deathTimer <= 0.f) return;
 
-    if (m_tex) {
-        sf::Sprite sp = m_sprite;
-        sp.setPosition(m_pos);
-        window.draw(sp);
-    } else {
-        drawPlaceholder(window);
-    }
-    drawHPBar(window);
-}
+    sf::Sprite sp = m_sprite;
+    sp.setPosition(m_pos);
 
-void Enemy::drawPlaceholder(sf::RenderWindow& window) const {
-    // Placeholder: lingkaran merah
-    sf::CircleShape body(20.f);
-    body.setFillColor(sf::Color(200, 60, 60));
-    body.setOutlineColor(sf::Color(120, 20, 20));
-    body.setOutlineThickness(2.f);
-    body.setOrigin(20.f, 20.f);
-    body.setPosition(m_pos);
-    window.draw(body);
+    // Flash red when hurt
+    if (m_anim == EnemyAnim::Hurt)
+        sp.setColor(sf::Color(255, 150, 150));
+    else
+        sp.setColor(sf::Color::White);
 
-    // Mata putih kecil
-    sf::CircleShape eye(4.f);
-    eye.setFillColor(sf::Color::White);
-    eye.setOrigin(4.f, 4.f);
-    eye.setPosition(m_pos.x + 7.f, m_pos.y - 5.f);
-    window.draw(eye);
-    eye.setPosition(m_pos.x - 7.f, m_pos.y - 5.f);
-    window.draw(eye);
+    window.draw(sp);
+    if (m_hp > 0.f) drawHPBar(window);
 }
 
 void Enemy::drawHPBar(sf::RenderWindow& window) const {
     float pct = m_hp / m_maxHp;
-    float bx  = m_pos.x - HPBAR_WIDTH * 0.5f;
+    float bx  = m_pos.x - HPBAR_WIDTH * .5f;
     float by  = m_pos.y + HPBAR_OFFSET_Y;
 
-    // Latar belakang gelap
     sf::RectangleShape bg({ HPBAR_WIDTH, HPBAR_HEIGHT });
-    bg.setFillColor(sf::Color(50, 50, 50, 200));
+    bg.setFillColor(sf::Color(40, 40, 40, 210));
     bg.setPosition(bx, by);
     window.draw(bg);
 
-    // Bar oren (musuh)
     sf::RectangleShape bar({ HPBAR_WIDTH * pct, HPBAR_HEIGHT });
-    bar.setFillColor(sf::Color(0xFF, 0x7A, 0x00)); // *** warna oren HP bar musuh ***
+    bar.setFillColor(sf::Color(0xFF, 0x7A, 0x00)); // oranye
     bar.setPosition(bx, by);
     window.draw(bar);
 }
