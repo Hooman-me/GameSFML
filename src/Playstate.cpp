@@ -77,9 +77,36 @@ void PlayState::update(float dt) {
     m_moneyTimer+=dt;
     if (m_moneyTimer>=MONEY_TICK) { m_moneyTimer-=MONEY_TICK; m_money++; }
 
+    // ============================================================
+    // DUAL SPAWN SYSTEM: Top path dulu, tunggu 30 detik, lalu bottom
+    // ============================================================
     m_spawnTimer+=dt;
-    if (m_spawned<WAVE_ENEMY_COUNT && m_spawnTimer>=ENEMY_SPAWN_INTERVAL) {
-        m_spawnTimer-=ENEMY_SPAWN_INTERVAL; spawnEnemy();
+    
+    // Tentukan spawn threshold: 50% pertama dari WAVE_ENEMY_COUNT spawn dari TOP
+    int topWaveCount = WAVE_ENEMY_COUNT / 2;
+    
+    if (m_spawned < WAVE_ENEMY_COUNT && m_spawnTimer >= ENEMY_SPAWN_INTERVAL) {
+        m_spawnTimer -= ENEMY_SPAWN_INTERVAL;
+        
+        // Phase 1: Spawn TOP path (indeks 0 hingga topWaveCount-1)
+        if (m_spawned < topWaveCount) {
+            spawnEnemy(true); // true = top path
+        }
+        // Phase 2: Tunggu 30 detik sebelum mulai spawn BOTTOM
+        else if (m_spawned == topWaveCount) {
+            // Transition delay
+            m_transitionTimer = 30.f;
+            m_spawned++; // Skip satu counting agar tidak spawn saat delay
+        }
+        // Phase 3: Spawn BOTTOM path setelah delay
+        else if (m_transitionTimer <= 0.f && m_spawned < WAVE_ENEMY_COUNT) {
+            spawnEnemy(false); // false = bottom path
+        }
+    }
+    
+    // Kurangi transition timer
+    if (m_transitionTimer > 0.f) {
+        m_transitionTimer -= dt;
     }
 
     for (auto& e : m_enemies) {
@@ -117,12 +144,17 @@ void PlayState::update(float dt) {
         m_phase=GamePhase::Victory;
 }
 
-void PlayState::spawnEnemy() {
+void PlayState::spawnEnemy(bool fromTopPath) {
+    // Pilih path mana yang akan digunakan
+    const std::vector<sf::Vector2f>& path = fromTopPath ? 
+        m_map.getWaypointsTop() : m_map.getWaypointsBottom();
+    
     m_enemies.emplace_back(
-        &m_map.getWaypoints(),
+        &path,
         m_assetsLoaded ? &m_texSlimeIdle : nullptr,
         m_assetsLoaded ? &m_texSlimeWalk : nullptr,
         m_assetsLoaded ? &m_texSlimeHurt : nullptr);
+    
     m_spawned++;
 }
 
@@ -131,7 +163,7 @@ void PlayState::updateCollisions() {
         if (proj.getState()!=ProjState::Flying) continue;
         sf::FloatRect pr=proj.getBounds();
         for (auto& enemy : m_enemies) {
-            if (enemy.isDead()) continue;
+            if (enemy.getHP() <= 0.f) continue;
             if (pr.intersects(enemy.getBounds())) {
                 float dmg = enemy.takeDamage(proj.getDamage());
                 proj.triggerExplosion();

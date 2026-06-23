@@ -13,7 +13,8 @@ constexpr float MONEY_TICK          = 1.0f;
 constexpr int   MONEY_START         = 10;
  
 constexpr int   WAVE_ENEMY_COUNT    = 20;
-constexpr float ENEMY_SPAWN_INTERVAL= 1.5f;
+// *** DIUBAH: Spawn interval diperbesar untuk spacing yang lebih lebar antar slime ***
+constexpr float ENEMY_SPAWN_INTERVAL= 2.0f;  // Was 1.5f, now 2.0f untuk spacing
 constexpr int   MONEY_PER_KILL      = 2;
  
 // *** ENEMY SPEED diperlambat ke "level 1" ***

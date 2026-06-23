@@ -53,7 +53,7 @@ void Troop::update(float dt,
         Enemy* target = nullptr;
         float closest = 1e9f;
         for (Enemy* e : enemies) {
-            if (!e || e->isDead() || e->hasReached()) continue;
+            if (!e || e->getHP() <= 0.f || e->hasReached()) continue;
             if (!inAttackRange(e->getPosition())) continue;
             sf::Vector2f d = e->getPosition() - m_pos;
             float dist = std::sqrt(d.x*d.x+d.y*d.y);
@@ -94,15 +94,31 @@ void Troop::applyFrame() {
     m_sprite.setTexture(*tex, true);
     m_sprite.setTextureRect(sf::IntRect(m_frame*CAT_FRAME_W, 0, CAT_FRAME_W, CAT_FRAME_H));
     m_sprite.setOrigin(CAT_FRAME_W*.5f, CAT_FRAME_H*.5f);
-    // Flip horizontal untuk Left/Right; Up/Down pakai Left sprite + vertical flip
+    
+    // *** FIXED: Gunakan rotation untuk Up/Down, bukan vertical flip ***
+    // Vertical flip (sy = -1) menyebabkan sprite terbalik dengan origin yang salah
     float sx = 1.f, sy = 1.f;
+    float rotation = 0.f;
+    
     switch (m_facing) {
-        case FacingDir::Right: sx= 1.f; sy= 1.f; break;
-        case FacingDir::Left:  sx=-1.f; sy= 1.f; break;
-        case FacingDir::Up:    sx= 1.f; sy=-1.f; break;
-        case FacingDir::Down:  sx= 1.f; sy= 1.f; break;
+        case FacingDir::Right:
+            sx = 1.f; sy = 1.f; rotation = 0.f;
+            break;
+        case FacingDir::Left:
+            sx = -1.f; sy = 1.f; rotation = 0.f;
+            break;
+        case FacingDir::Up:
+            // Untuk Up, gunakan scale normal + rotation 180
+            // Ini membuat sprite menghadap atas tanpa flip vertikal yang aneh
+            sx = 1.f; sy = 1.f; rotation = 180.f;
+            break;
+        case FacingDir::Down:
+            sx = 1.f; sy = 1.f; rotation = 0.f;
+            break;
     }
+    
     m_sprite.setScale(sx, sy);
+    m_sprite.setRotation(rotation);
 }
 
 void Troop::draw(sf::RenderWindow& window) const {

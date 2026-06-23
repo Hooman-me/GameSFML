@@ -15,6 +15,12 @@ Enemy::Enemy(const std::vector<sf::Vector2f>* waypoints,
 }
 
 float Enemy::takeDamage(float rawDmg) {
+    // --- BARIS YANG DITAMBAHKAN UNTUK FIX BUG ---
+    // Jika HP slime sudah 0 (sedang dalam animasi mati), jangan terima damage lagi.
+    // Ini mencegah deathTimer ke-reset sehingga slime bisa benar-benar mati dan hilang.
+    if (m_hp <= 0.f) return 0.f; 
+    // ---------------------------------------------
+
     float actual = std::max(1.f, rawDmg - m_defense);
     m_hp = std::max(0.f, m_hp - actual);
     if (m_hp <= 0.f) {

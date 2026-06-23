@@ -43,6 +43,9 @@ private:
 
     float       m_spawnTimer = 0.f;
     int         m_spawned    = 0;
+    
+    // *** BARU: Transition timer untuk 30 detik delay antara top dan bottom spawn ***
+    float       m_transitionTimer = 0.f;
 
     // Deploy state
     int         m_selectedCard = -1;
@@ -51,7 +54,7 @@ private:
     FacingDir   m_deployDir    = FacingDir::Left;  // default kiri
 
     void loadAssets();
-    void spawnEnemy();
+    void spawnEnemy(bool fromTopPath);  // *** DIUBAH: bool parameter untuk path selection ***
     void updateCollisions();
     void tryDeployTroop(sf::Vector2f worldPos);
 
