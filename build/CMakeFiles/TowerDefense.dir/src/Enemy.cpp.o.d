@@ -1,6 +1,6 @@
 CMakeFiles/TowerDefense.dir/src/Enemy.cpp.o: \
  /home/hooman/TowerDefense/src/Enemy.cpp /usr/include/stdc-predef.h \
- /home/hooman/TowerDefense/src/../include/Enemy.hpp \
+ /home/hooman/TowerDefense/include/Enemy.hpp \
  /usr/include/SFML/Graphics.hpp /usr/include/SFML/Window.hpp \
  /usr/include/SFML/System.hpp /usr/include/SFML/Config.hpp \
  /usr/include/SFML/System/Clock.hpp /usr/include/SFML/System/Export.hpp \
@@ -235,7 +235,7 @@ CMakeFiles/TowerDefense.dir/src/Enemy.cpp.o: \
  /usr/include/SFML/Graphics/Sprite.hpp \
  /usr/include/SFML/Graphics/Text.hpp \
  /usr/include/SFML/Graphics/VertexBuffer.hpp \
- /home/hooman/TowerDefense/src/../include/Constants.hpp \
+ /home/hooman/TowerDefense/include/Constants.hpp \
  /usr/include/c++/13/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \

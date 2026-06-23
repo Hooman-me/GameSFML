@@ -9,56 +9,47 @@
 
 enum class GamePhase { Playing, GameOver, Victory };
 
-// Damage text popup
 struct DmgText {
     sf::Vector2f pos;
-    float        value;
-    float        life   = 1.0f; // seconds
-    float        alpha  = 255.f;
+    float value, life=1.0f, alpha=255.f;
 };
 
 class PlayState {
 public:
     PlayState();
-
     void handleEvent(const sf::Event& event, sf::RenderWindow& window);
     void update(float dt);
     void draw(sf::RenderWindow& window);
 
 private:
     Map m_map;
-
     std::vector<Enemy>      m_enemies;
     std::vector<Troop>      m_troops;
     std::vector<Projectile> m_projectiles;
-    std::vector<DmgText>    m_dmgTexts;   // damage number popups
+    std::vector<DmgText>    m_dmgTexts;
 
-    // --- Textures ---
     sf::Texture m_texCatIdle, m_texCatAttack, m_texCatHurt;
     sf::Texture m_texSlimeIdle, m_texSlimeWalk, m_texSlimeHurt;
     sf::Texture m_texFireball;
     bool        m_assetsLoaded = false;
 
-    // --- Font ---
     sf::Font    m_font;
     bool        m_fontLoaded = false;
 
-    // --- Game state ---
     int         m_money    = MONEY_START;
     int         m_baseHP   = BASE_MAX_HP;
     float       m_moneyTimer = 0.f;
     GamePhase   m_phase    = GamePhase::Playing;
 
-    // --- Wave ---
     float       m_spawnTimer = 0.f;
     int         m_spawned    = 0;
-    int         m_killed     = 0;
 
-    // --- Deploy ---
+    // Deploy state
     int         m_selectedCard = -1;
     bool        m_placing      = false;
+    // *** BARU: arah deploy dikontrol keyboard arrow ***
+    FacingDir   m_deployDir    = FacingDir::Left;  // default kiri
 
-    // --- Methods ---
     void loadAssets();
     void spawnEnemy();
     void updateCollisions();
@@ -72,7 +63,7 @@ private:
 
     struct TroopCard {
         const char* name;
-        int         cost;
+        int cost;
     };
     static constexpr TroopCard CARDS[] = {
         { "CatBlaze", TROOP_COST },
