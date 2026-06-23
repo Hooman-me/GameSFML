@@ -2,6 +2,7 @@
 #include "Constants.hpp"
 #include <fstream>
 #include <cmath>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -22,9 +23,6 @@ void Map::loadTMJ() {
         int mapW = data["width"].get<int>();
         int mapH = data["height"].get<int>();
 
-        // *** Tileset mapping — sesuaikan firstgid/lastgid dari TMJ ***
-        // TMJ Map 1.2: jalur=1, TilesetFloor=76, TilesetWater=648,
-        //              TilesetNature=1124, BASE=1628, tes(House)=1635
         struct RawTS { int fgid; std::string name; int cols; };
         std::vector<RawTS> rawTS;
         for (auto& ts : data["tilesets"]) {
@@ -34,7 +32,6 @@ void Map::loadTMJ() {
             r.cols = ts.contains("columns") ? ts["columns"].get<int>() : 0;
             rawTS.push_back(r);
         }
-        // Sort by firstgid to compute lastgid
         std::sort(rawTS.begin(), rawTS.end(),
             [](const RawTS& a, const RawTS& b){ return a.fgid < b.fgid; });
 
@@ -50,11 +47,9 @@ void Map::loadTMJ() {
             if (nm == "TilesetWater"  && m_waterOk)  ti.tex = &m_texWater;
             if (nm == "TilesetNature" && m_natureOk) ti.tex = &m_texNature;
             if (nm == "tes"           && m_houseOk)  ti.tex = &m_texHouse;
-            // "BASE" (big images) & "jalur.tsx" — skip render, no valid texture
             m_tilesets.push_back(ti);
         }
 
-        // Load tile layers
         for (auto& layer : data["layers"]) {
             std::string type = layer["type"].get<std::string>();
             if (type == "tilelayer") {
@@ -70,25 +65,43 @@ void Map::loadTMJ() {
     } catch (...) { m_mapLoaded = false; }
 }
 
-// *** DIPERBAIKI: waypoints sesuai Map 1.2 layout yang terlihat di screenshot ***
-// Path layout (dari analisis tile Layer 2):
-// Spawn kiri -> kanan (top band row4-6, y=88)
-// -> turun (right vertical col27, x=440)
-// -> kiri (bottom band row22-24, y=376)
-// -> naik (inner left col2, x=24)
-// -> kanan (middle band row12-15, y=232)
-// -> base (rumah col54-57 row11-15, center x=896 y=216)
+// ============================================================
+// DUAL WAYPOINTS
+// Path TOP (kiri atas): spawn kiri atas -> lurus kanan ->
+//   belok bawah -> sampai tengah Y -> lurus kanan ke base
+// Path BOTTOM (kiri bawah): spawn kiri bawah -> lurus kanan ->
+//   belok atas -> sampai tengah Y -> lurus kanan ke base
+//
+// Koordinat berdasarkan layout Map 1.2:
+//   - Tengah Y (middle band) = 232
+//   - Kolom belok (right turn) = 440
+//   - Spawn top Y = 88, spawn bottom Y = 376
+// ============================================================
 void Map::buildWaypoints() {
-    m_waypoints = {
-        {   0.f,  88.f },   // [0] SPAWN – masuk dari kiri atas
-        { 440.f,  88.f },   // [1] belokan kanan atas
-        { 440.f, 376.f },   // [2] belokan kanan bawah
-        {  24.f, 376.f },   // [3] belokan kiri bawah
-        {  24.f, 232.f },   // [4] naik ke tengah, ketemu middle band
-        { 440.f, 232.f },   // [5] right junction – gabung ke jalur tengah
-        { 848.f, 232.f },   // [6] ujung exit path (col53)
-        { BASE_CENTER_X, BASE_CENTER_Y }, // [7] BASE – tengah rumah
+    // --- PATH ATAS ---
+    // Kiri atas -> lurus kanan -> belok bawah -> tengah -> base
+    m_waypointsTop = {
+        {  -30.f,  88.f },   // [0] SPAWN off-screen kiri atas
+        {  440.f,  88.f },   // [1] lurus ke kanan hingga kolom belok
+        {  440.f, 232.f },   // [2] belok bawah sampai tengah (middle band)
+        {  848.f, 232.f },   // [3] lurus ke kanan menuju base
+        { BASE_CENTER_X, BASE_CENTER_Y }, // [4] BASE
     };
+
+    // --- PATH BAWAH ---
+    // Kiri bawah -> lurus kanan -> belok atas -> tengah -> base
+    m_waypointsBottom = {
+        {  -30.f, 376.f },   // [0] SPAWN off-screen kiri bawah
+        {  440.f, 376.f },   // [1] lurus ke kanan hingga kolom belok
+        {  440.f, 232.f },   // [2] belok atas sampai tengah (middle band)
+        {  848.f, 232.f },   // [3] lurus ke kanan menuju base
+        { BASE_CENTER_X, BASE_CENTER_Y }, // [4] BASE
+    };
+
+    // Gabungkan semua waypoints untuk keperluan cek nearPath (deploy check)
+    m_waypointsAll = m_waypointsTop;
+    for (auto& wp : m_waypointsBottom)
+        m_waypointsAll.push_back(wp);
 }
 
 void Map::draw(sf::RenderWindow& window) const {
@@ -96,12 +109,11 @@ void Map::draw(sf::RenderWindow& window) const {
         for (auto& layer : m_layers)
             drawTileLayer(window, layer);
     } else {
-        // Fallback background
         sf::RectangleShape bg({(float)WINDOW_WIDTH,(float)GAME_AREA_HEIGHT});
         bg.setFillColor(sf::Color(55,80,40));
         window.draw(bg);
     }
-    drawSpawnMarker(window);
+    // TIDAK memanggil drawSpawnMarker -- marker sekarang invisible
 }
 
 void Map::drawTileLayer(sf::RenderWindow& window, const TileLayer& layer) const {
@@ -127,52 +139,45 @@ void Map::drawTileLayer(sf::RenderWindow& window, const TileLayer& layer) const 
     }
 }
 
-void Map::drawSpawnMarker(sf::RenderWindow& window) const {
-    if (m_waypoints.empty()) return;
-    sf::CircleShape mark(10.f);
-    mark.setFillColor(sf::Color(220,50,50,180));
-    mark.setOutlineColor(sf::Color::White);
-    mark.setOutlineThickness(1.5f);
-    mark.setOrigin(10.f,10.f);
-    mark.setPosition(m_waypoints.front());
-    window.draw(mark);
+void Map::drawBase(sf::RenderWindow& window) const {
+    // Base sudah digambar via tile layer (house tileset)
+    (void)window;
 }
 
 // ---------------------------------------------------------------
 bool Map::isDeployable(sf::Vector2f pos) const {
-    // Batas layar
     if (pos.x < 8.f || pos.x > WINDOW_WIDTH-8.f) return false;
     if (pos.y < 8.f || pos.y > GAME_AREA_HEIGHT-8.f) return false;
-
-    // Cek di atas jalur (Layer 2 tiles)
-    if (nearPath(pos)) return false;
-
-    // Cek Layer 3 (environment dekorasi)
-    if (onEnvLayer(pos)) return false;
-
-    // Cek Layer 4 (pohon besar, batu, base/rumah)
+    if (nearPath(pos))      return false;
+    if (onEnvLayer(pos))    return false;
     if (onObjectLayer(pos)) return false;
-
-    // Cek kolisi dengan base box
-    if (onBaseBounds(pos)) return false;
-
+    if (onBaseBounds(pos))  return false;
     return true;
 }
 
 bool Map::nearPath(sf::Vector2f pos) const {
-    for (size_t i=0; i+1<m_waypoints.size(); ++i) {
-        if (pointSegDist(pos, m_waypoints[i], m_waypoints[i+1]) < 26.f)
+    // Cek terhadap SEMUA waypoint (top + bottom) agar area jalan tetap non-deployable
+    for (size_t i=0; i+1<m_waypointsAll.size(); ++i) {
+        // Skip segment yang menghubungkan tail top ke head bottom
+        // (indeks m_waypointsTop.size()-1 ke m_waypointsTop.size() adalah sambungan buatan)
+        // Kita cukup cek semua segment karena nearPath hanya untuk block deploy
+        if (pointSegDist(pos, m_waypointsAll[i], m_waypointsAll[i+1]) < 26.f)
             return true;
     }
+    // Cek juga tiap path secara mandiri untuk segment dalam setiap path
+    for (size_t i=0; i+1<m_waypointsTop.size(); ++i)
+        if (pointSegDist(pos, m_waypointsTop[i], m_waypointsTop[i+1]) < 26.f)
+            return true;
+    for (size_t i=0; i+1<m_waypointsBottom.size(); ++i)
+        if (pointSegDist(pos, m_waypointsBottom[i], m_waypointsBottom[i+1]) < 26.f)
+            return true;
     return false;
 }
 
-// Cek apakah tile di Layer 3 (environment) ada di posisi ini
 bool Map::onEnvLayer(sf::Vector2f pos) const {
     const int TS = 16;
     for (auto& layer : m_layers) {
         if (layer.name != "Tile Layer 3") continue;
-        // Check pos and neighbors (radius ~20px = 1.25 tiles)
         for (int dy=-1; dy<=1; ++dy) {
             for (int dx=-1; dx<=1; ++dx) {
                 int col = (int)((pos.x + dx*20.f) / TS);
@@ -185,7 +190,6 @@ bool Map::onEnvLayer(sf::Vector2f pos) const {
     return false;
 }
 
-// Cek apakah tile di Layer 4 (pohon besar/batu/base) ada di posisi ini
 bool Map::onObjectLayer(sf::Vector2f pos) const {
     const int TS = 16;
     for (auto& layer : m_layers) {
