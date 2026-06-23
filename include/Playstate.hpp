@@ -20,6 +20,7 @@ public:
     void handleEvent(const sf::Event& event, sf::RenderWindow& window);
     void update(float dt);
     void draw(sf::RenderWindow& window);
+    void reset();
 
 private:
     Map m_map;
@@ -31,6 +32,7 @@ private:
     sf::Texture m_texCatIdle, m_texCatAttack, m_texCatHurt;
     sf::Texture m_texSlimeIdle, m_texSlimeWalk, m_texSlimeHurt;
     sf::Texture m_texFireball;
+    sf::Texture m_texMedIcon;
     bool        m_assetsLoaded = false;
 
     sf::Font    m_font;

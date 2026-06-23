@@ -15,6 +15,7 @@ void PlayState::loadAssets() {
     ok &= m_texSlimeWalk.loadFromFile(SLIME_WALK_PATH);
     ok &= m_texSlimeHurt.loadFromFile(SLIME_HURT_PATH);
     ok &= m_texFireball.loadFromFile(FIREBALL_PATH);
+    //ok &= m_texMedIcon.loadFromFile("assets/icons/MedIcon.png");
     m_assetsLoaded = ok;
     m_fontLoaded   = m_font.loadFromFile(FONT_REAL_PATH);
 }
@@ -23,7 +24,7 @@ void PlayState::loadAssets() {
 void PlayState::handleEvent(const sf::Event& event, sf::RenderWindow& window) {
     if (m_phase != GamePhase::Playing) {
         if (event.type==sf::Event::KeyPressed && event.key.code==sf::Keyboard::R)
-            *this = PlayState();
+            reset();
         return;
     }
 
@@ -278,28 +279,41 @@ void PlayState::drawUIBar(sf::RenderWindow& window) {
                 if (!canBuy) icon.setColor(sf::Color(120,120,120));
                 window.draw(icon);
             }
-            // Cost badge
-            sf::RectangleShape badge({44.f,18.f});
+            
+            // --- BAGIAN YANG DIUBAH: Cost badge dan MedIcon ---
+            // Cost badge diperlebar untuk muat icon
+            sf::RectangleShape badge({60.f, 22.f});
             badge.setFillColor(sf::Color(25,25,25,210));
-            badge.setPosition(cx+cardW*.5f-22.f, startY+cardH-20.f);
+            badge.setPosition(cx+cardW*.5f-30.f, startY+cardH-24.f);
             window.draw(badge);
+
+            // Tampilkan MedIcon di kartu
+            if (m_assetsLoaded) {
+                sf::Sprite medIcon(m_texMedIcon);
+                medIcon.setScale(0.8f, 0.8f);
+                medIcon.setPosition(cx+cardW*.5f-26.f, startY+cardH-22.f);
+                window.draw(medIcon);
+            }
+
             if (m_fontLoaded) {
                 sf::Text ct; ct.setFont(m_font);
                 ct.setString(std::to_string(CARDS[i].cost));
-                ct.setCharacterSize(13);
+                ct.setCharacterSize(14);
                 ct.setFillColor(canBuy?sf::Color(255,220,50):sf::Color(130,130,130));
-                ct.setPosition(cx+cardW*.5f-10.f, startY+cardH-21.f);
+                ct.setPosition(cx+cardW*.5f-2.f, startY+cardH-22.f); // Teks digeser ke kanan
                 window.draw(ct);
+                
                 sf::Text nt; nt.setFont(m_font);
                 nt.setString(CARDS[i].name);
                 nt.setCharacterSize(11); nt.setFillColor(sf::Color::White);
                 nt.setPosition(cx+5.f, startY+3.f);
                 window.draw(nt);
             }
+            // --------------------------------------------------
         }
     }
 
-    // Direction indicator saat placing
+    // Direction indicator saat placing (TETAP AMAN)
     if (m_placing && m_fontLoaded) {
         std::string dirStr = "Arah: ";
         switch (m_deployDir) {
@@ -323,17 +337,30 @@ void PlayState::drawUIBar(sf::RenderWindow& window) {
     mp2.setOutlineThickness(1.5f);
     mp2.setPosition((float)WINDOW_WIDTH-128.f, barTop+11.f);
     window.draw(mp2);
+    
+    // --- BAGIAN YANG DIUBAH: Panel Uang Kanan Bawah ---
     if (m_fontLoaded) {
         sf::Text ml; ml.setFont(m_font); ml.setString("MONEY");
         ml.setCharacterSize(15); ml.setFillColor(sf::Color(190,190,190));
-        ml.setPosition((float)WINDOW_WIDTH-112.f, barTop+20.f);
+        ml.setPosition((float)WINDOW_WIDTH-96.f, barTop+20.f); // Label digeser ke kanan
         window.draw(ml);
+
+        // Tampilkan MedIcon besar di dalam panel uang
+        if (m_assetsLoaded) {
+            sf::Sprite medIconLarge(m_texMedIcon);
+            medIconLarge.setScale(1.2f, 1.2f);
+            medIconLarge.setPosition((float)WINDOW_WIDTH-110.f, barTop+48.f);
+            window.draw(medIconLarge);
+        }
+
         sf::Text mv; mv.setFont(m_font);
         mv.setString(std::to_string(m_money));
         mv.setCharacterSize(28); mv.setFillColor(sf::Color(255,220,50));
-        mv.setPosition((float)WINDOW_WIDTH-100.f, barTop+44.f);
+        mv.setPosition((float)WINDOW_WIDTH-76.f, barTop+46.f); // Angka digeser ke kanan
         window.draw(mv);
     }
+    // --------------------------------------------------
+
     // Troop count
     if (m_fontLoaded) {
         sf::Text tc; tc.setFont(m_font);
@@ -412,4 +439,27 @@ void PlayState::drawGameOver(sf::RenderWindow& window) {
     t2.setOrigin(b2.width*.5f,b2.height*.5f);
     t2.setPosition((float)WINDOW_WIDTH*.5f,(float)GAME_AREA_HEIGHT*.58f);
     window.draw(t2);
+}
+
+    void PlayState::reset() {
+    // 1. Bersihkan semua entitas di layar
+    m_enemies.clear();
+    m_troops.clear();
+    m_projectiles.clear();
+    m_dmgTexts.clear();
+
+    // 2. Kembalikan semua status ke awal
+    m_money        = MONEY_START;
+    m_baseHP       = BASE_MAX_HP;
+    m_moneyTimer   = 0.f;
+    m_spawnTimer   = 0.f;
+    m_spawned      = 0;
+    m_killed       = 0;
+    
+    m_phase        = GamePhase::Playing;
+    
+    // 3. Batalkan status penempatan troops jika sedang memegang kartu
+    m_selectedCard = -1;
+    m_placing      = false;
+    m_deployDir    = FacingDir::Left;
 }

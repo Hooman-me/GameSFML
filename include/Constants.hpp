@@ -74,7 +74,7 @@ constexpr const char* TILESET_FLOOR_PATH  = "assets/Ninja Pack/Backgrounds/Tiles
 constexpr const char* TILESET_WATER_PATH  = "assets/Ninja Pack/Backgrounds/Tilesets/TilesetWater.png";
 constexpr const char* TILESET_NATURE_PATH = "assets/Ninja Pack/Backgrounds/Tilesets/TilesetNature.png";
 constexpr const char* TILESET_HOUSE_PATH  = "assets/Ninja Pack/Backgrounds/Tilesets/TilesetHouse.png";
-constexpr const char* FONT_REAL_PATH   = "assets/font.ttf";
+constexpr const char* FONT_REAL_PATH   = "assets/fonts/Roboto-Medium.ttf";
  
 // Base (rumah) posisi di map: house tile cols 54-57 rows 11-15
 constexpr float BASE_CENTER_X = 896.f;
