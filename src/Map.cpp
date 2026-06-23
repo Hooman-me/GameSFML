@@ -157,20 +157,38 @@ bool Map::isDeployable(sf::Vector2f pos) const {
 
 bool Map::nearPath(sf::Vector2f pos) const {
     // Cek terhadap SEMUA waypoint (top + bottom) agar area jalan tetap non-deployable
-    for (size_t i=0; i+1<m_waypointsAll.size(); ++i) {
-        // Skip segment yang menghubungkan tail top ke head bottom
-        // (indeks m_waypointsTop.size()-1 ke m_waypointsTop.size() adalah sambungan buatan)
-        // Kita cukup cek semua segment karena nearPath hanya untuk block deploy
-        if (pointSegDist(pos, m_waypointsAll[i], m_waypointsAll[i+1]) < 26.f)
+    for (size_t i = 0; i + 1 < m_waypointsAll.size(); ++i) {
+        sf::Vector2f p1 = m_waypointsAll[i];
+        sf::Vector2f p2 = m_waypointsAll[i+1];
+
+        // Hitung jarak antara dua titik
+        float dx = p2.x - p1.x;
+        float dy = p2.y - p1.y;
+        float dist = std::sqrt(dx * dx + dy * dy);
+
+        // EKSEKUSI SKIP: Jika jaraknya sangat jauh (> 150 pixel), 
+        // ini adalah garis gaib yang menghubungkan tail top ke head bottom. Abaikan!
+        if (dist > 150.f) {
+            continue;
+        }
+
+        // Jika jarak kursor ke jalan kurang dari 26, block deploy
+        if (pointSegDist(pos, p1, p2) < 26.f) {
             return true;
+        }
     }
-    // Cek juga tiap path secara mandiri untuk segment dalam setiap path
-    for (size_t i=0; i+1<m_waypointsTop.size(); ++i)
+
+    // Cek juga tiap path secara mandiri (untuk memastikan cover area aman)
+    for (size_t i = 0; i + 1 < m_waypointsTop.size(); ++i) {
         if (pointSegDist(pos, m_waypointsTop[i], m_waypointsTop[i+1]) < 26.f)
             return true;
-    for (size_t i=0; i+1<m_waypointsBottom.size(); ++i)
+    }
+        
+    for (size_t i = 0; i + 1 < m_waypointsBottom.size(); ++i) {
         if (pointSegDist(pos, m_waypointsBottom[i], m_waypointsBottom[i+1]) < 26.f)
             return true;
+    }
+
     return false;
 }
 
