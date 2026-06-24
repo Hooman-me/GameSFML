@@ -81,12 +81,12 @@ clean: CMakeFiles/TowerDefense.dir/clean
 CMakeFiles/TowerDefense.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/hooman/TowerDefense/build/CMakeFiles --progress-num=1,2,3,4,5,6,7 "Built target TowerDefense"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/hooman/TowerDefense/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9 "Built target TowerDefense"
 .PHONY : CMakeFiles/TowerDefense.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/TowerDefense.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/hooman/TowerDefense/build/CMakeFiles 7
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/hooman/TowerDefense/build/CMakeFiles 9
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/TowerDefense.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/hooman/TowerDefense/build/CMakeFiles 0
 .PHONY : CMakeFiles/TowerDefense.dir/rule

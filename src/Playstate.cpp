@@ -22,11 +22,15 @@ void PlayState::loadAssets() {
 
 // ---------------------------------------------------------------
 void PlayState::handleEvent(const sf::Event& event, sf::RenderWindow& window) {
-    if (m_phase != GamePhase::Playing) {
-        if (event.type==sf::Event::KeyPressed && event.key.code==sf::Keyboard::R)
-            reset();
-        return;
+// Jika sedang pause, ESC akan melanjutkannya (Resume)
+    if (m_phase == GamePhase::Paused) {
+        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
+            m_phase = GamePhase::Playing;
+        }
+        return; 
     }
+    // Jika game sudah selesai, jangan proses input apa-apa lagi di PlayState
+    if (m_phase == GamePhase::Victory || m_phase == GamePhase::GameOver) return;
 
     // *** Arrow keys mengubah arah deploy ***
     if (event.type == sf::Event::KeyPressed) {
@@ -36,7 +40,11 @@ void PlayState::handleEvent(const sf::Event& event, sf::RenderWindow& window) {
             case sf::Keyboard::Up:    m_deployDir = FacingDir::Up;    break;
             case sf::Keyboard::Down:  m_deployDir = FacingDir::Down;  break;
             case sf::Keyboard::Escape:
-                m_selectedCard=-1; m_placing=false;
+                if (m_placing) {
+                    m_selectedCard = -1; m_placing = false; // Batal taruh troop
+                } else {
+                    m_phase = GamePhase::Paused; // Pause game
+                }
                 break;
             default: break;
         }
@@ -76,7 +84,10 @@ void PlayState::handleEvent(const sf::Event& event, sf::RenderWindow& window) {
 void PlayState::update(float dt) {
     if (m_phase!=GamePhase::Playing) return;
     m_moneyTimer+=dt;
-    if (m_moneyTimer>=MONEY_TICK) { m_moneyTimer-=MONEY_TICK; m_money++; }
+    if (m_moneyTimer>=MONEY_TICK) {
+        m_moneyTimer-=MONEY_TICK; m_money++; 
+    if (m_money > 100) m_money = 100;
+    }
 
     // ============================================================
     // DUAL SPAWN SYSTEM: Top path dulu, tunggu 30 detik, lalu bottom
@@ -174,6 +185,7 @@ void PlayState::updateCollisions() {
                         dmg, 0.9f, 255.f});
                 }
                 if (enemy.isDead()) m_money+=MONEY_PER_KILL;
+                if (m_money > 100) m_money = 100;
                 break;
             }
         }
@@ -199,7 +211,7 @@ void PlayState::tryDeployTroop(sf::Vector2f worldPos) {
 }
 
 // ---------------------------------------------------------------
-void PlayState::draw(sf::RenderWindow& window) {
+void PlayState::draw(sf::RenderWindow& window){
     window.clear(sf::Color(34,48,34));
     m_map.draw(window);
     for (auto& t : m_troops)  t.drawRangeIndicator(window);
@@ -213,9 +225,10 @@ void PlayState::draw(sf::RenderWindow& window) {
     }
     drawHUD(window);
     drawUIBar(window);
-    if (m_phase!=GamePhase::Playing) drawGameOver(window);
+if (m_phase == GamePhase::Paused) {
+        drawPauseScreen(window);
+    }
 }
-
 void PlayState::drawHUD(sf::RenderWindow& window) {
     sf::RectangleShape panel({300.f,34.f});
     panel.setFillColor(sf::Color(50,50,50,210));
@@ -331,46 +344,40 @@ void PlayState::drawUIBar(sf::RenderWindow& window) {
     }
 
     // MONEY panel
-    sf::RectangleShape mp2({118.f,90.f});
-    mp2.setFillColor(sf::Color(55,55,55));
-    mp2.setOutlineColor(sf::Color(140,140,140));
-    mp2.setOutlineThickness(1.5f);
-    mp2.setPosition((float)WINDOW_WIDTH-128.f, barTop+11.f);
-    window.draw(mp2);
-    
-    // --- BAGIAN YANG DIUBAH: Panel Uang Kanan Bawah ---
+    sf::RectangleShape infoPanel({118.f, 90.f});
+    infoPanel.setFillColor(sf::Color(55,55,55));
+    infoPanel.setOutlineColor(sf::Color(140,140,140));
+    infoPanel.setOutlineThickness(1.5f);
+    infoPanel.setPosition((float)WINDOW_WIDTH-128.f, barTop+11.f);
+    window.draw(infoPanel);
+
     if (m_fontLoaded) {
+        // --- Bagian Atas: MONEY (Sekitar 3/4 ruang) ---
         sf::Text ml; ml.setFont(m_font); ml.setString("MONEY");
-        ml.setCharacterSize(15); ml.setFillColor(sf::Color(190,190,190));
-        ml.setPosition((float)WINDOW_WIDTH-96.f, barTop+20.f); // Label digeser ke kanan
+        ml.setCharacterSize(14); ml.setFillColor(sf::Color(190,190,190));
+        ml.setPosition((float)WINDOW_WIDTH-112.f, barTop+18.f);
         window.draw(ml);
-
-        // Tampilkan MedIcon besar di dalam panel uang
-        if (m_assetsLoaded) {
-            sf::Sprite medIconLarge(m_texMedIcon);
-            medIconLarge.setScale(1.2f, 1.2f);
-            medIconLarge.setPosition((float)WINDOW_WIDTH-110.f, barTop+48.f);
-            window.draw(medIconLarge);
-        }
-
+        
         sf::Text mv; mv.setFont(m_font);
         mv.setString(std::to_string(m_money));
-        mv.setCharacterSize(28); mv.setFillColor(sf::Color(255,220,50));
-        mv.setPosition((float)WINDOW_WIDTH-76.f, barTop+46.f); // Angka digeser ke kanan
+        mv.setCharacterSize(26); mv.setFillColor(sf::Color(255,220,50));
+        mv.setPosition((float)WINDOW_WIDTH-100.f, barTop+36.f);
         window.draw(mv);
-    }
-    // --------------------------------------------------
 
-    // Troop count
-    if (m_fontLoaded) {
+        // --- Garis Pemisah ---
+        sf::RectangleShape line({100.f, 1.f});
+        line.setFillColor(sf::Color(100,100,100));
+        line.setPosition((float)WINDOW_WIDTH-119.f, barTop+70.f);
+        window.draw(line);
+
+        // --- Bagian Bawah: TROOPS
         sf::Text tc; tc.setFont(m_font);
-        tc.setString("Troops: "+std::to_string(m_troops.size())+"/"+
-                     std::to_string(MAX_TROOPS));
+        tc.setString("Troops: " + std::to_string(m_troops.size()) + "/" + std::to_string(MAX_TROOPS));
         tc.setCharacterSize(12); tc.setFillColor(sf::Color(180,255,180));
-        tc.setPosition(10.f, barTop+95.f);
+        tc.setPosition((float)WINDOW_WIDTH-112.f, barTop+76.f);
         window.draw(tc);
     }
-}
+} 
 
 void PlayState::drawDeployCursor(sf::RenderWindow& window, sf::Vector2f mp) {
     bool valid = m_map.isDeployable(mp) &&
@@ -411,7 +418,7 @@ void PlayState::drawDmgTexts(sf::RenderWindow& window) {
         std::ostringstream ss; ss<<(int)d.value;
         t.setString(ss.str()); t.setCharacterSize(16);
         sf::Uint8 a=(sf::Uint8)d.alpha;
-        t.setFillColor(sf::Color(255,230,50,a));
+        t.setFillColor(sf::Color(255, 50, 50, a));
         t.setOutlineColor(sf::Color(0,0,0,a));
         t.setOutlineThickness(1.5f);
         t.setPosition(d.pos);
@@ -419,21 +426,22 @@ void PlayState::drawDmgTexts(sf::RenderWindow& window) {
     }
 }
 
-void PlayState::drawGameOver(sf::RenderWindow& window) {
+void PlayState::drawPauseScreen(sf::RenderWindow& window) {
     sf::RectangleShape ov({(float)WINDOW_WIDTH,(float)GAME_AREA_HEIGHT});
     ov.setFillColor(sf::Color(0,0,0,155)); window.draw(ov);
     if (!m_fontLoaded) return;
-    bool won=(m_phase==GamePhase::Victory);
+    
     sf::Text t1; t1.setFont(m_font);
-    t1.setString(won?"VICTORY!":"GAME OVER");
+    t1.setString("PAUSED");
     t1.setCharacterSize(60);
-    t1.setFillColor(won?sf::Color(100,255,100):sf::Color(255,80,80));
+    t1.setFillColor(sf::Color(255, 200, 50));
     auto b1=t1.getLocalBounds();
     t1.setOrigin(b1.width*.5f,b1.height*.5f);
     t1.setPosition((float)WINDOW_WIDTH*.5f,(float)GAME_AREA_HEIGHT*.38f);
     window.draw(t1);
+    
     sf::Text t2; t2.setFont(m_font);
-    t2.setString("Press R to restart");
+    t2.setString("Press ESC to resume");
     t2.setCharacterSize(22); t2.setFillColor(sf::Color::White);
     auto b2=t2.getLocalBounds();
     t2.setOrigin(b2.width*.5f,b2.height*.5f);
@@ -441,25 +449,30 @@ void PlayState::drawGameOver(sf::RenderWindow& window) {
     window.draw(t2);
 }
 
-    void PlayState::reset() {
+   // ---------------------------------------------------------------
+// Reset Game
+// ---------------------------------------------------------------
+void PlayState::reset() {
     // 1. Bersihkan semua entitas di layar
     m_enemies.clear();
     m_troops.clear();
     m_projectiles.clear();
     m_dmgTexts.clear();
 
-    // 2. Kembalikan semua status ke awal
-    m_money        = MONEY_START;
-    m_baseHP       = BASE_MAX_HP;
-    m_moneyTimer   = 0.f;
-    m_spawnTimer   = 0.f;
-    m_spawned      = 0;
-    m_killed       = 0;
-    
-    m_phase        = GamePhase::Playing;
-    
-    // 3. Batalkan status penempatan troops jika sedang memegang kartu
-    m_selectedCard = -1;
-    m_placing      = false;
-    m_deployDir    = FacingDir::Left;
+    // 2. Kembalikan status resource dan base
+    m_money           = MONEY_START;
+    m_baseHP          = BASE_MAX_HP;
+    m_moneyTimer      = 0.f;
+    m_phase           = GamePhase::Playing;
+
+    // 3. Kembalikan status wave & timer spawn
+    m_spawnTimer      = 0.f;
+    m_spawned         = 0;
+    m_transitionTimer = 0.f; // Variabel penting untuk reset jeda dual spawn
+
+    // 4. Batalkan status deploy / pemilihan kartu
+    m_selectedCard    = -1;
+    m_placing         = false;
+    m_deployDir       = FacingDir::Left;
 }
+

@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/TowerDefense.dir/src/Endingstate.cpp.o"
+  "CMakeFiles/TowerDefense.dir/src/Endingstate.cpp.o.d"
   "CMakeFiles/TowerDefense.dir/src/Enemy.cpp.o"
   "CMakeFiles/TowerDefense.dir/src/Enemy.cpp.o.d"
   "CMakeFiles/TowerDefense.dir/src/Main.cpp.o"
@@ -9,6 +11,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/TowerDefense.dir/src/Playstate.cpp.o.d"
   "CMakeFiles/TowerDefense.dir/src/Projectile.cpp.o"
   "CMakeFiles/TowerDefense.dir/src/Projectile.cpp.o.d"
+  "CMakeFiles/TowerDefense.dir/src/Startstate.cpp.o"
+  "CMakeFiles/TowerDefense.dir/src/Startstate.cpp.o.d"
   "CMakeFiles/TowerDefense.dir/src/Troops.cpp.o"
   "CMakeFiles/TowerDefense.dir/src/Troops.cpp.o.d"
   "TowerDefense"

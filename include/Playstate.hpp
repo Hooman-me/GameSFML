@@ -7,7 +7,7 @@
 #include "Projectile.hpp"
 #include "Constants.hpp"
 
-enum class GamePhase { Playing, GameOver, Victory };
+enum class GamePhase { Playing, GameOver, Victory, Paused };
 
 struct DmgText {
     sf::Vector2f pos;
@@ -16,6 +16,7 @@ struct DmgText {
 
 class PlayState {
 public:
+GamePhase getPhase() const { return m_phase; }
     PlayState();
     void handleEvent(const sf::Event& event, sf::RenderWindow& window);
     void update(float dt);
@@ -63,7 +64,7 @@ private:
     void drawHUD(sf::RenderWindow& window);
     void drawUIBar(sf::RenderWindow& window);
     void drawDeployCursor(sf::RenderWindow& window, sf::Vector2f mousePos);
-    void drawGameOver(sf::RenderWindow& window);
+    void drawPauseScreen(sf::RenderWindow& window);
     void drawDmgTexts(sf::RenderWindow& window);
 
     struct TroopCard {

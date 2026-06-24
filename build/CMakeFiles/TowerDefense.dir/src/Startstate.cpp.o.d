@@ -1,5 +1,6 @@
-CMakeFiles/TowerDefense.dir/src/Main.cpp.o: \
- /home/hooman/TowerDefense/src/Main.cpp /usr/include/stdc-predef.h \
+CMakeFiles/TowerDefense.dir/src/Startstate.cpp.o: \
+ /home/hooman/TowerDefense/src/Startstate.cpp /usr/include/stdc-predef.h \
+ /home/hooman/TowerDefense/include/Startstate.hpp \
  /usr/include/SFML/Graphics.hpp /usr/include/SFML/Window.hpp \
  /usr/include/SFML/System.hpp /usr/include/SFML/Config.hpp \
  /usr/include/SFML/System/Clock.hpp /usr/include/SFML/System/Export.hpp \
@@ -234,11 +235,4 @@ CMakeFiles/TowerDefense.dir/src/Main.cpp.o: \
  /usr/include/SFML/Graphics/Sprite.hpp \
  /usr/include/SFML/Graphics/Text.hpp \
  /usr/include/SFML/Graphics/VertexBuffer.hpp \
- /home/hooman/TowerDefense/include/Playstate.hpp \
- /home/hooman/TowerDefense/include/Map.hpp \
- /home/hooman/TowerDefense/include/Enemy.hpp \
- /home/hooman/TowerDefense/include/Troops.hpp \
- /home/hooman/TowerDefense/include/Projectile.hpp \
- /home/hooman/TowerDefense/include/Constants.hpp \
- /home/hooman/TowerDefense/include/Startstate.hpp \
- /home/hooman/TowerDefense/include/Endingstate.hpp
+ /home/hooman/TowerDefense/include/Constants.hpp

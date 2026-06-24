@@ -129,6 +129,30 @@ TowerDefense/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/build
 .PHONY : TowerDefense/fast
 
+src/Endingstate.o: src/Endingstate.cpp.o
+.PHONY : src/Endingstate.o
+
+# target to build an object file
+src/Endingstate.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/src/Endingstate.cpp.o
+.PHONY : src/Endingstate.cpp.o
+
+src/Endingstate.i: src/Endingstate.cpp.i
+.PHONY : src/Endingstate.i
+
+# target to preprocess a source file
+src/Endingstate.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/src/Endingstate.cpp.i
+.PHONY : src/Endingstate.cpp.i
+
+src/Endingstate.s: src/Endingstate.cpp.s
+.PHONY : src/Endingstate.s
+
+# target to generate assembly for a file
+src/Endingstate.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/src/Endingstate.cpp.s
+.PHONY : src/Endingstate.cpp.s
+
 src/Enemy.o: src/Enemy.cpp.o
 .PHONY : src/Enemy.o
 
@@ -249,6 +273,30 @@ src/Projectile.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/src/Projectile.cpp.s
 .PHONY : src/Projectile.cpp.s
 
+src/Startstate.o: src/Startstate.cpp.o
+.PHONY : src/Startstate.o
+
+# target to build an object file
+src/Startstate.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/src/Startstate.cpp.o
+.PHONY : src/Startstate.cpp.o
+
+src/Startstate.i: src/Startstate.cpp.i
+.PHONY : src/Startstate.i
+
+# target to preprocess a source file
+src/Startstate.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/src/Startstate.cpp.i
+.PHONY : src/Startstate.cpp.i
+
+src/Startstate.s: src/Startstate.cpp.s
+.PHONY : src/Startstate.s
+
+# target to generate assembly for a file
+src/Startstate.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/TowerDefense.dir/build.make CMakeFiles/TowerDefense.dir/src/Startstate.cpp.s
+.PHONY : src/Startstate.cpp.s
+
 src/Troops.o: src/Troops.cpp.o
 .PHONY : src/Troops.o
 
@@ -282,6 +330,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... TowerDefense"
+	@echo "... src/Endingstate.o"
+	@echo "... src/Endingstate.i"
+	@echo "... src/Endingstate.s"
 	@echo "... src/Enemy.o"
 	@echo "... src/Enemy.i"
 	@echo "... src/Enemy.s"
@@ -297,6 +348,9 @@ help:
 	@echo "... src/Projectile.o"
 	@echo "... src/Projectile.i"
 	@echo "... src/Projectile.s"
+	@echo "... src/Startstate.o"
+	@echo "... src/Startstate.i"
+	@echo "... src/Startstate.s"
 	@echo "... src/Troops.o"
 	@echo "... src/Troops.i"
 	@echo "... src/Troops.s"

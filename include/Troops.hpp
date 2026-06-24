@@ -8,7 +8,7 @@
 // ============================================================
 
 enum class TroopState   { Idle, Attacking, Hurt };
-enum class FacingDir    { Left, Right };
+enum class FacingDir    { Left, Right, Up, Down };
 
 class Enemy;
 

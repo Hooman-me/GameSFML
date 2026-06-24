@@ -11,6 +11,8 @@ set(SOURCES
     src/Troops.cpp
     src/Projectile.cpp
     src/Playstate.cpp
+    src/Startstate.cpp
+    src/Endingstate.cpp
 )
 
 add_executable(TowerDefense ${SOURCES})
